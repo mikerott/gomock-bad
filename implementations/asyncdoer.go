@@ -3,6 +3,7 @@ package implementations
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/mikerott/gomock-bad/interfaces"
 )
@@ -38,6 +39,10 @@ type Processor struct {
 
 func (p *Processor) Process() {
 
+	var sema semaphore = make(chan struct{}, maxGoRoutines)
+	var producerWG sync.WaitGroup
+	done := make(chan bool)
+
 	stringAccumulatorChan := make(chan string) // accumulate the strings here
 
 	accumulatedStrings := []string{}
@@ -47,24 +52,24 @@ func (p *Processor) Process() {
 			select {
 			case s := <-stringAccumulatorChan:
 				fmt.Printf("MIKE: got: %s\n", s)
+				time.Sleep(1 * time.Second)
 				mutex.Lock()
 				accumulatedStrings = append(accumulatedStrings, s)
 				mutex.Unlock()
 				fmt.Printf("MIKE: size: %d\n", len(accumulatedStrings))
+			case <-done:
+				return
 			}
 		}
 	}()
 
-	var sema semaphore = make(chan struct{}, maxGoRoutines)
-	var wg sync.WaitGroup
-
-	wg.Add(p.Jobs)
+	producerWG.Add(p.Jobs)
 
 	for i := 0; i < p.Jobs; i++ {
 		sema.acquire()
 		go func() {
 			defer sema.release()
-			defer wg.Done()
+			defer producerWG.Done()
 
 			things, err := p.ThingConsumer.ConsumeThings()
 			if err == nil {
@@ -75,10 +80,11 @@ func (p *Processor) Process() {
 		}()
 	}
 
-	wg.Wait()
+	producerWG.Wait()
+	done <- true
 
 	mutex.Lock()
-	fmt.Printf("MIKE: after wg.Wait(): %d\n", len(accumulatedStrings))
+	fmt.Printf("MIKE: after producerWG.Wait(): %d\n", len(accumulatedStrings))
 	mutex.Unlock()
 
 }

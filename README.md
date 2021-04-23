@@ -1,3 +1,9 @@
+UPDATE:
+
+The answer is here: https://stackoverflow.com/questions/43166750/goroutines-with-sync-waitgroup-end-before-last-wg-done
+
+What you read below is now historical context for the original problem I originally faced (commit df727edab93fff2ff07f0176abeecb50925a1ad6).  It's now fixed (commit bce29df546593c27ffc4e38cdab089117bb66ccd) The world makes sense again.
+
 ```
 go mod tidy
 ```
